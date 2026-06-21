@@ -248,46 +248,130 @@
         }
 
         // ------------------------------------------------------------
-        // COMPARTIR (con truncado para evitar error)
-        // ------------------------------------------------------------
-        function compartirTexto() {
-            if (!textoFragmentoActual) {
-                alert('Primero desbloquea un recuerdo.');
-                return;
-            }
+// COMPARTIR (con imagen + fallback a texto)
+// ------------------------------------------------------------
+function compartirTexto() {
+    if (!textoFragmentoActual) {
+        alert('Primero desbloquea un recuerdo.');
+        return;
+    }
 
-            const url = window.location.href;
-            // Truncamos el texto a 200 caracteres (suficiente para dar contexto)
-            let textoCorto = textoFragmentoActual;
-            if (textoCorto.length > 200) {
-                textoCorto = textoCorto.substring(0, 200) + '…';
-            }
+    // 1. Generar la imagen en un canvas (igual que en generarImagen)
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 800;
+    const ctx = canvas.getContext('2d');
 
-            const mensaje = `📖 "${textoCorto}" — Encontraste aquí un Recuerdo Errante de Vindria.\n\nLee más en: ${url}`;
+    // Fondo
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Intentar con la API nativa de compartir (móviles)
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Memorias Errantes',
-                    text: mensaje,
-                    url: url
-                }).catch(() => {
-                    // Si falla (por ejemplo, el usuario cancela), no hacemos nada
-                });
-            } else {
-                // Fallback: copiar al portapapeles (versión más ligera)
-                try {
-                    navigator.clipboard.writeText(mensaje).then(() => {
-                        alert('Texto copiado al portapapeles. ¡Compártelo donde quieras!');
-                    }).catch(() => {
-                        // Si falla la copia, mostramos un mensaje para copiar manualmente
-                        alert('No se pudo copiar automáticamente. Selecciona el texto y cópialo manualmente.');
-                    });
-                } catch (e) {
-                    alert('No se pudo compartir. Intenta copiar el texto manualmente.');
-                }
-            }
+    // Título
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 22px "Courier New", monospace';
+    ctx.fillStyle = '#dab669';
+    ctx.fillText('MEMORIAS ERRANTES', canvas.width/2, 60);
+
+    ctx.strokeStyle = '#6a5f4b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(100, 80);
+    ctx.lineTo(canvas.width - 100, 80);
+    ctx.stroke();
+
+    // Texto
+    ctx.font = '18px "Courier New", monospace';
+    ctx.fillStyle = '#e0dcd0';
+    const maxWidth = canvas.width - 80;
+    let lines = [];
+    let currentLine = '';
+    const words = textoFragmentoActual.split(' ');
+    for (let word of words) {
+        const testLine = currentLine + word + ' ';
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && currentLine.length > 0) {
+            lines.push(currentLine.trim());
+            currentLine = word + ' ';
+        } else {
+            currentLine = testLine;
         }
+    }
+    if (currentLine.length > 0) lines.push(currentLine.trim());
+
+    const lineHeight = 30;
+    const totalHeight = lines.length * lineHeight;
+    let startY = (canvas.height - totalHeight) / 2 + 20;
+    for (let i = 0; i < lines.length; i++) {
+        const y = startY + i * lineHeight;
+        ctx.fillText(lines[i], canvas.width/2, y);
+    }
+
+    // Firma
+    ctx.font = '16px "Courier New", monospace';
+    ctx.fillStyle = '#b8a68b';
+    const firmaY = canvas.height - 70;
+    ctx.fillText('Encontraste aquí un Recuerdo Errante de Vindria.', canvas.width/2, firmaY);
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = '#6a604e';
+    ctx.fillText('Comparte este fragmento con alguien que también camine por este siglo de ceniza.', canvas.width/2, firmaY + 30);
+
+    // Convertir canvas a Blob
+    canvas.toBlob(function(blob) {
+        if (!blob) {
+            // Si no se puede generar el blob, caer al método de texto
+            compartirTextoFallback();
+            return;
+        }
+
+        // Crear un archivo a partir del blob
+        const file = new File([blob], `recuerdo-errante-${codigoActual}.png`, { type: 'image/png' });
+
+        // Intentar compartir con la API de archivos
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+                title: 'Memorias Errantes',
+                files: [file]
+            }).catch(function(error) {
+                // Si el usuario cancela o hay error, no hacemos nada
+                console.log('Error al compartir imagen:', error);
+                // Opcional: si falla, ofrecer texto
+                // compartirTextoFallback();
+            });
+        } else {
+            // Si el navegador no soporta compartir archivos, usar el método de texto
+            compartirTextoFallback();
+        }
+    }, 'image/png');
+}
+
+// ------------------------------------------------------------
+// FALLBACK: compartir solo texto + enlace
+// ------------------------------------------------------------
+function compartirTextoFallback() {
+    const url = window.location.href;
+    let textoCorto = textoFragmentoActual;
+    if (textoCorto.length > 200) {
+        textoCorto = textoCorto.substring(0, 200) + '…';
+    }
+    const mensaje = `📖 "${textoCorto}" — Encontraste aquí un Recuerdo Errante de Vindria.\n\nLee más en: ${url}`;
+
+    if (navigator.share) {
+        navigator.share({
+            title: 'Memorias Errantes',
+            text: mensaje,
+            url: url
+        }).catch(() => {});
+    } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(mensaje).then(() => {
+            alert('✅ Texto copiado al portapapeles.');
+        }).catch(() => {
+            alert('No se pudo copiar. Copia el texto manualmente.');
+        });
+    } else {
+        alert(`📋 Copia este texto manualmente:\n\n${mensaje}`);
+    }
+}
 
         // ------------------------------------------------------------
         // GENERAR IMAGEN con Canvas nativo
