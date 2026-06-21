@@ -214,11 +214,12 @@
         // MOSTRAR FRAGMENTO
         // ------------------------------------------------------------
         function mostrarFragmento() {
-        const input = document.getElementById('codigoInput');
-        const codigo = input.value.trim().toUpperCase();
-        const contenedor = document.getElementById('contenedorFragmento');
-        const acciones = document.getElementById('acciones');
+    const input = document.getElementById('codigoInput');
+    const codigo = input.value.trim().toUpperCase();
+    const contenedor = document.getElementById('contenedorFragmento');
+    const acciones = document.getElementById('acciones');
 
+    // Validar: 6 caracteres entre letras y números
     if (!/^[A-Z0-9]{6}$/.test(codigo)) {
         contenedor.innerHTML =
             `<p class="error">Código inválido. Memoria no encontrada.</p>`;
@@ -230,10 +231,34 @@
     const fragmento = fragmentos[codigo];
 
     if (fragmento) {
-        // resto del código...
+        codigoActual = codigo;
+
+        // Extraer texto sin etiquetas
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = fragmento;
+        textoFragmentoActual = tempDiv.innerText.trim();
+
+        contenedor.innerHTML =
+            fragmento +
+            `<div class="compartir">
+                <p>
+                    Has desbloqueado un recuerdo. Si este fragmento te ha encontrado,
+                    <strong>compártelo</strong> con alguien que también camine por este siglo de ceniza.
+                </p>
+            </div>`;
+
+        acciones.style.display = 'flex';
+    } else {
+        contenedor.innerHTML =
+            `<p class="error">
+                Ese código no desbloquea ningún recuerdo.
+                El código está detrás del pin.
+            </p>`;
+
+        acciones.style.display = 'none';
+        textoFragmentoActual = '';
     }
 }
-
         // ------------------------------------------------------------
 // COMPARTIR (con imagen + fallback a texto)
 // ------------------------------------------------------------
